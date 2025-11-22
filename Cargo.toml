@@ -1,0 +1,32 @@
+[package]
+name = "jtm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+convert_case = { version = "0.9", optional = true }
+educe = "0.6.0"
+omnierr = {path = "../omnierr"}
+regex = { version = "1", optional = true }
+regex-filtered = { version = "0.2", optional = true }
+serde = { version = "1", optional = true }
+snafu = "0.8"
+triomphe = "0.1.15"
+
+[features]
+regex-filtered = ["dep:regex-filtered"]
+regex = ["dep:regex"]
+boundary-tokenizer = ["dep:convert_case"]
+serde = ["dep:serde"]
+
+[lints.rust]
+dead_code = "allow"
+unused_imports = "allow"
+unused_mut = "allow"
+async_fn_in_trait = "allow"
+unused_variables = "allow"
+unused_assignments = "allow"
+unreachable_code = "allow"
+
+[lints.clippy]
+enum_variant_names = "allow"
