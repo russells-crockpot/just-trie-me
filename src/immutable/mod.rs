@@ -203,14 +203,14 @@ pub type StringMatcher<T = BoundaryTokenizer> = StringTrie<bool, T>;
 pub type StringMatcherBuilder<T = WhitespaceTokenizer> =
     ImmutableTrieBuilder<StringTrieNode<bool>, bool, T>;
 
-#[feature("regex-filtered")]
+#[cfg(feature = ("regex-filtered"))]
 pub type RegexTrie<V, T = BoundaryTokenizer> = ImmutableTrie<RegexFilteredTrieNode<V>, V, T>;
-#[feature("regex-filtered")]
+#[cfg(feature = ("regex-filtered"))]
 pub type RegexTrieBuilder<V, T = WhitespaceTokenizer> =
     ImmutableTrieBuilder<RegexFilteredTrieNodeBuilder<V>, V, T>;
-#[feature("regex-filtered")]
+#[cfg(feature = ("regex-filtered"))]
 pub type RegexMatcher<T = BoundaryTokenizer> = RegexTrie<bool, T>;
-#[feature("regex-filtered")]
+#[cfg(feature = ("regex-filtered"))]
 pub type RegexMatcherBuilder<T = WhitespaceTokenizer> = RegexTrieBuilder<bool, T>;
 
 //#[cfg(test)]

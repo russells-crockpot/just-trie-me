@@ -1,22 +1,31 @@
 use super::MutableTrieNode;
 use crate::Result;
-use std::{borrow::BorrowMut as _, collections::HashMap, fmt};
+use std::{borrow::BorrowMut as _, collections::HashMap, fmt, hash::Hash};
 
 #[derive(Clone)]
-pub struct StringTrieNode<V> {
+pub struct HashTrieNode<K, V>
+where
+    K: Hash + PartialEq,
+{
     value: Option<V>,
-    children: HashMap<String, Box<Self>>,
+    children: HashMap<K, Box<Self>>,
 }
 
-impl<V> StringTrieNode<V> {
-    fn match_child_mut<S: AsRef<str>>(&mut self, token: S) -> Option<&mut Self> {
+impl<K, V> HashTrieNode<K, V>
+where
+    K: Hash + PartialEq,
+{
+    fn get_child_mut<S: AsRef<str>>(&mut self, token: S) -> Option<&mut Self> {
         self.children
             .get_mut(token.as_ref())
             .map(|n| n.borrow_mut())
     }
 }
 
-impl<V> Default for StringTrieNode<V> {
+impl<K, V> Default for HashTrieNode<K, V>
+where
+    K: Hash + PartialEq,
+{
     fn default() -> Self {
         Self {
             value: None,
@@ -25,21 +34,29 @@ impl<V> Default for StringTrieNode<V> {
     }
 }
 
-impl<V> MutableTrieNode<V> for StringTrieNode<V> {
+//TODO get entry
+impl<K, V> MutableTrieNode<K, V> for HashTrieNode<K, V>
+where
+    K: Hash + PartialEq,
+{
     fn add<S, I>(&mut self, mut items_iter: I, value: V) -> Result<()>
     where
-        S: AsRef<str>,
-        I: Iterator<Item = S>,
+        I: Iterator<Item = K>,
     {
         let key = if let Some(part) = items_iter.next() {
-            String::from(part.as_ref())
+            part
         } else {
             self.value = Some(value);
             return Ok(());
         };
-        self.children.entry(&key)
-            .or_default()
-            .add(items_iter, value)
+        let mut child = if let Some(child) = self.get_child_mut(&key) {
+            child
+        } else {
+            let child = Self::default();
+            self.children.insert(key.clone(), Box::new(child));
+            self.get_child_mut(&key).unwrap()
+        };
+        let _ = child.add(items_iter, value);
         Ok(())
     }
 
@@ -47,7 +64,7 @@ impl<V> MutableTrieNode<V> for StringTrieNode<V> {
         self.value.as_ref()
     }
 
-    fn match_children<S: AsRef<str>>(&self, token: S) -> Vec<&Self> {
+    fn get_children<S: AsRef<str>>(&self, token: S) -> Vec<&Self> {
         self.children
             .get(token.as_ref())
             .into_iter()
@@ -70,26 +87,27 @@ impl<V> MutableTrieNode<V> for StringTrieNode<V> {
     }
 }
 
-impl<V> fmt::Debug for StringTrieNode<V>
+impl<K, V> fmt::Debug for HashTrieNode<K, V>
 where
+    K: Hash + PartialEq + fmt::Debug,
     V: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("StringTrieNode")
+        f.debug_struct("HashTrieNode")
             .field("value", &self.value)
             .field("children", &self.children)
             .finish()
     }
 }
 
-#[cfg(test)]
+//#[cfg(test)]
 mod tests {
     use super::*;
     use crate::trie::{MutableTrieNode, MutableTrieNodeBuilder};
 
     #[test]
     fn test_string_trie_shape() {
-        let mut node = StringTrieNode::default();
+        let mut node = HashTrieNode::default();
         node.add(["bobby"].into_iter(), true).unwrap();
         node.add(["mister", "bobby"].into_iter(), true).unwrap();
         node.add(["mister", "mark"].into_iter(), true).unwrap();
@@ -98,12 +116,12 @@ mod tests {
         assert!(node.children.contains_key("mister"));
         assert!(!node.children.contains_key("mark"));
         assert!(node.value.is_none());
-        let children = node.match_children("bobby");
+        let children = node.get_children("bobby");
         assert_eq!(children.len(), 1);
         let child = children[0];
         assert!(child.children.is_empty());
         assert!(child.value.unwrap());
-        let children = node.match_children("mister");
+        let children = node.get_children("mister");
         assert_eq!(children.len(), 1);
         let child = children[0];
         assert_eq!(child.children.len(), 2);
@@ -113,18 +131,18 @@ mod tests {
     }
 
     #[test]
-    fn test_string_trie_match_any() {
-        let mut node = StringTrieNode::default();
+    fn test_string_trie_get_any() {
+        let mut node = HashTrieNode::default();
         node.add(["bobby"].into_iter(), true).unwrap();
         node.add(["mister", "bobby"].into_iter(), true).unwrap();
         node.add(["mister", "mark"].into_iter(), true).unwrap();
-        assert!(matches!(node.match_any(&["bobby"]), Some(true)));
-        assert!(matches!(node.match_any(&["mister", "bobby"]), Some(true)));
-        assert!(matches!(node.match_any(&["mister", "mark"]), Some(true)));
-        assert!(node.match_any(&["mister", "the", "bobby"]).is_none());
-        assert!(node.match_any(&["mister", "the", "mark"]).is_none());
-        assert!(node.match_any(&["mark"]).is_none());
-        assert!(node.match_any(&["mister"]).is_none());
-        assert!(node.match_any(&["mister", "joe"]).is_none());
+        assert!(matches!(node.get_any(&["bobby"]), Some(true)));
+        assert!(matches!(node.get_any(&["mister", "bobby"]), Some(true)));
+        assert!(matches!(node.get_any(&["mister", "mark"]), Some(true)));
+        assert!(node.get_any(&["mister", "the", "bobby"]).is_none());
+        assert!(node.get_any(&["mister", "the", "mark"]).is_none());
+        assert!(node.get_any(&["mark"]).is_none());
+        assert!(node.get_any(&["mister"]).is_none());
+        assert!(node.get_any(&["mister", "joe"]).is_none());
     }
 }

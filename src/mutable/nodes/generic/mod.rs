@@ -1,4 +1,4 @@
-use super::{MutableTrieNode, MutableTrieNodeBuilder};
+use super::MutableTrieNode;
 use crate::{
     Result,
     tokenization::{BoundaryTokenizer, Tokenizer},
@@ -12,12 +12,12 @@ use std::{
 };
 
 mod char;
-#[feature("regex")]
+#[cfg(feature = ("regex"))]
 mod regex;
 mod string;
 
 pub use char::*;
-#[feature("regex")]
+#[cfg(feature = ("regex"))]
 pub use regex::*;
 pub use string::*;
 
@@ -26,10 +26,9 @@ pub struct GenericTrieNode<K, V>
 where
     K: NodeKey,
 {
-    // public in the crate for testing purposes
-    pub(crate) key: K,
-    pub(crate) value: Option<V>,
-    pub(crate) children: HashMap<String, Box<GenericTrieNode<K, V>>>,
+    key: K,
+    value: Option<V>,
+    children: HashMap<String, Box<GenericTrieNode<K, V>>>,
 }
 
 impl<K, V> GenericTrieNode<K, V>
@@ -44,7 +43,7 @@ where
         })
     }
 
-    pub fn get_all<S: AsRef<str>>(&self, tokens: &[S]) -> Vec<&V> {
+    pub fn match_all<S: AsRef<str>>(&self, tokens: &[S]) -> Vec<&V> {
         let mut items = Vec::new();
         if tokens.is_empty() {
             return items;
@@ -59,12 +58,12 @@ where
         }
         let remaining_tokens = &tokens[1..];
         for child in self.children.values() {
-            items.extend(child.get_all(remaining_tokens));
+            items.extend(child.match_all(remaining_tokens));
         }
         items
     }
 
-    pub fn get_any<S: AsRef<str>>(&self, tokens: &[S]) -> Option<&V> {
+    pub fn match_any<S: AsRef<str>>(&self, tokens: &[S]) -> Option<&V> {
         let token = tokens[0].as_ref();
         // first check end/exit conditions against this token.
         if !self.token_is_match(token) {
@@ -75,7 +74,7 @@ where
         }
         let remaining_tokens = &tokens[1..];
         for child in self.children.values() {
-            let value = child.get_any(remaining_tokens);
+            let value = child.match_any(remaining_tokens);
             if value.is_some() {
                 return value;
             }
@@ -89,7 +88,7 @@ where
     }
 
     pub fn is_match<S: AsRef<str>>(&self, tokens: &[S]) -> bool {
-        self.get_any(tokens).is_some()
+        self.match_any(tokens).is_some()
     }
 }
 
@@ -97,7 +96,7 @@ impl<K, V> MutableTrieNode<V> for GenericTrieNode<K, V>
 where
     K: NodeKey,
 {
-    fn get_children<S: AsRef<str>>(&self, token: S) -> Vec<&Self> {
+    fn match_children<S: AsRef<str>>(&self, token: S) -> Vec<&Self> {
         self.children
             .values()
             .filter(|c| c.token_is_match(token.as_ref()))
@@ -121,17 +120,6 @@ where
                 .values()
                 .map(|n| n.len_recursive())
                 .sum::<usize>()
-    }
-}
-
-impl<K, V> MutableTrieNodeBuilder<V> for GenericTrieNode<K, V>
-where
-    K: NodeKey,
-{
-    type Node = Self;
-
-    fn build(self) -> Result<Self::Node> {
-        Ok(self)
     }
 
     fn add<S, I>(&mut self, mut items_iter: I, value: V) -> Result<()>

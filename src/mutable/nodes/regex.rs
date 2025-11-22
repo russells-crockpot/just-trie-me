@@ -1,20 +1,12 @@
-use super::{MutableTrieNode, MutableTrieNodeBuilder};
+use super::MutableTrieNode;
 use crate::Result;
-use educe::Educe;
 use regex::{Regex, RegexBuilder};
-use std::{
-    borrow::BorrowMut,
-    collections::{BTreeSet, HashMap},
-    fmt,
-    marker::PhantomData,
-    ops::Deref,
-};
-use triomphe::Arc;
+use std::{borrow::BorrowMut, collections::HashMap, fmt, ops::Deref};
 
 #[derive(Clone)]
 pub struct RegexTrieNode<V> {
     value: Option<V>,
-    children: Vec<(Regex, Box<Self>)>,
+    children: HashMap<String, Box<Self>>,
 }
 
 impl<V> RegexTrieNode<V> {
@@ -27,14 +19,52 @@ impl<V> RegexTrieNode<V> {
 }
 
 impl<V> MutableTrieNode<V> for RegexTrieNode<V> {
-    fn get_child<S: AsRef<str>>(&self, token: S) -> Option<&Self> {
+    fn add<S, I>(&mut self, mut items_iter: I, value: V) -> Result<()>
+    where
+        S: AsRef<str>,
+        I: Iterator<Item = S>,
+    {
+        let pattern = if let Some(part) = items_iter.next() {
+            format!(
+                "^{}$",
+                part.as_ref().trim_start_matches('^').trim_end_matches('$')
+            )
+        } else {
+            self.value = Some(value);
+            return Ok(());
+        };
+        let mut child = if let Some(child) = self.children.entry(pattern.as_str()) {
+            child
+        } else {
+            let child = Self::default();
+            let regex = RegexBuilder::new(&pattern)
+                .case_insensitive(true)
+                .unicode(true)
+                .build()?;
+            self.children.insert(regex, Box::new(child));
+            self.children.get_mut(idx).unwrap()
+        };
+        let mut child = if let Some(child) = self.get_child_mut(&key) {
+            child
+        } else {
+            let child = Self::default();
+            self.children
+                .entry(&key)
+                .or_default()
+                .insert(key.clone(), Box::new(child));
+            self.get_child_mut(&key).unwrap()
+        };
+        child.add(items_iter, value)
+    }
+
+    fn match_child<S: AsRef<str>>(&self, token: S) -> Option<&Self> {
         self.children
             .iter()
             .find(|(pat, _)| pat.is_match(token.as_ref()))
             .map(|(_, node)| node.as_ref())
     }
 
-    fn get_children<S: AsRef<str>>(&self, token: S) -> Vec<&Self> {
+    fn match_children<S: AsRef<str>>(&self, token: S) -> Vec<&Self> {
         self.children
             .iter()
             .filter(|(pat, _)| pat.is_match(token.as_ref()))
@@ -65,44 +95,7 @@ impl<V> Default for RegexTrieNode<V> {
     fn default() -> Self {
         Self {
             value: None,
-            children: Vec::new(),
+            children: Default::default(),
         }
-    }
-}
-
-impl<V> MutableTrieNodeBuilder<V> for RegexTrieNode<V> {
-    type Node = RegexTrieNode<V>;
-
-    fn add<S, I>(&mut self, mut items_iter: I, value: V) -> Result<()>
-    where
-        S: AsRef<str>,
-        I: Iterator<Item = S>,
-    {
-        let pattern = if let Some(part) = items_iter.next() {
-            format!("^{}$", part.as_ref())
-        } else {
-            self.value = Some(value);
-            return Ok(());
-        };
-        let mut child = if let Some(child) = self.get_child_mut(&pattern) {
-            child
-        } else {
-            let child = Self::default();
-            let regex = RegexBuilder::new(&pattern)
-                .case_insensitive(true)
-                .unicode(true)
-                .build()?;
-            self.children.push((regex, Box::new(child)));
-            let idx = self.children.len() - 1;
-            self.children
-                .get_mut(idx)
-                .map(|(_, node)| node.borrow_mut())
-                .unwrap()
-        };
-        child.add(items_iter, value)
-    }
-
-    fn build(self) -> Result<Self::Node> {
-        Ok(self)
     }
 }

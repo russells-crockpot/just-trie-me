@@ -1,14 +1,12 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+mod error;
+pub mod immutable;
+pub mod mutable;
+pub mod tokenization;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use error::*;
+#[doc(inline)]
+pub use immutable::*;
+#[doc(inline)]
+pub use mutable::*;
+#[doc(inline)]
+pub use tokenization::*;

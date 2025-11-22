@@ -1,13 +1,13 @@
 use crate::Result;
 
-#[feature("regex")]
+#[cfg(feature = ("regex"))]
 mod regex;
-#[feature("regex-filtered")]
+#[cfg(feature = ("regex-filtered"))]
 mod regex_filtered;
 
-#[feature("regex")]
+#[cfg(feature = ("regex"))]
 pub use regex::*;
-#[feature("regex-filtered")]
+#[cfg(feature = ("regex-filtered"))]
 pub use regex_filtered::*;
 
 pub trait ImmutableTrieNodeBuilder<V> {
