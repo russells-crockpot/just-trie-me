@@ -1,4 +1,4 @@
-use super::{TrieNode, TrieNodeBuilder};
+use super::{MutableTrieNode, MutableTrieNodeBuilder};
 use crate::Result;
 use std::{borrow::BorrowMut as _, collections::HashMap, fmt};
 
@@ -25,7 +25,7 @@ impl<V> Default for StringTrieNode<V> {
     }
 }
 
-impl<V> TrieNode<V> for StringTrieNode<V> {
+impl<V> MutableTrieNode<V> for StringTrieNode<V> {
     fn value(&self) -> Option<&V> {
         self.value.as_ref()
     }
@@ -53,7 +53,7 @@ impl<V> TrieNode<V> for StringTrieNode<V> {
     }
 }
 
-impl<V> TrieNodeBuilder<V> for StringTrieNode<V> {
+impl<V> MutableTrieNodeBuilder<V> for StringTrieNode<V> {
     type Node = StringTrieNode<V>;
 
     fn add<S, I>(&mut self, mut items_iter: I, value: V) -> Result<()>
@@ -97,7 +97,7 @@ where
 //#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::trie::{TrieNode, TrieNodeBuilder};
+    use crate::trie::{MutableTrieNode, MutableTrieNodeBuilder};
 
     #[test]
     fn test_string_trie_shape() {

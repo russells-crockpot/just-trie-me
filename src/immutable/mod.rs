@@ -3,7 +3,6 @@ use crate::{
     tokenization::{BoundaryTokenizer, Tokenizer, WhitespaceTokenizer},
 };
 use educe::Educe;
-use regex_filtered::{Builder as RegexesBuilder, Options as RegexesOptions, Regexes};
 use std::{
     collections::{BTreeSet, HashMap, HashSet},
     fmt,
@@ -12,12 +11,12 @@ use std::{
     ops::Deref,
 };
 
-mod nodes;
-pub use nodes::*;
+pub mod nodes;
+use nodes::*;
 
-pub struct TrieBuilder<B, V, T = WhitespaceTokenizer>
+pub struct ImmutableTrieBuilder<B, V, T = WhitespaceTokenizer>
 where
-    B: TrieNodeBuilder<V>,
+    B: ImmutableTrieNodeBuilder<V>,
     T: Tokenizer,
 {
     tokenizer: T,
@@ -25,9 +24,9 @@ where
     _spooky: PhantomData<V>,
 }
 
-impl<B, V, T> Default for TrieBuilder<B, V, T>
+impl<B, V, T> Default for ImmutableTrieBuilder<B, V, T>
 where
-    B: TrieNodeBuilder<V> + Default,
+    B: ImmutableTrieNodeBuilder<V> + Default,
     T: Tokenizer + Default,
 {
     #[inline]
@@ -36,9 +35,9 @@ where
     }
 }
 
-impl<B, V, T> TrieBuilder<B, V, T>
+impl<B, V, T> ImmutableTrieBuilder<B, V, T>
 where
-    B: TrieNodeBuilder<V> + Default,
+    B: ImmutableTrieNodeBuilder<V> + Default,
     T: Tokenizer,
 {
     #[inline]
@@ -47,9 +46,9 @@ where
     }
 }
 
-impl<B, V, T> TrieBuilder<B, V, T>
+impl<B, V, T> ImmutableTrieBuilder<B, V, T>
 where
-    B: TrieNodeBuilder<V>,
+    B: ImmutableTrieNodeBuilder<V>,
     T: Tokenizer + Default,
 {
     #[inline]
@@ -58,9 +57,9 @@ where
     }
 }
 
-impl<B, V, T> TrieBuilder<B, V, T>
+impl<B, V, T> ImmutableTrieBuilder<B, V, T>
 where
-    B: TrieNodeBuilder<V>,
+    B: ImmutableTrieNodeBuilder<V>,
     T: Tokenizer,
 {
     pub fn new(tokenizer: T, builder: B) -> Self {
@@ -84,22 +83,22 @@ where
         self.builder.add(tokens.into_iter(), value)
     }
 
-    pub fn build<TT: Tokenizer>(self, trie_tokenizer: TT) -> Result<Trie<B::Node, V, TT>> {
+    pub fn build<TT: Tokenizer>(self, trie_tokenizer: TT) -> Result<ImmutableTrie<B::Node, V, TT>> {
         let root = self.builder.build()?;
-        Ok(Trie::new(trie_tokenizer, root))
+        Ok(ImmutableTrie::new(trie_tokenizer, root))
     }
 
-    pub fn build_default<TT: Tokenizer + Default>(self) -> Result<Trie<B::Node, V, TT>> {
+    pub fn build_default<TT: Tokenizer + Default>(self) -> Result<ImmutableTrie<B::Node, V, TT>> {
         let root = self.builder.build()?;
-        Ok(Trie::new(Default::default(), root))
+        Ok(ImmutableTrie::new(Default::default(), root))
     }
 }
 
 #[derive(Clone, Educe)]
 #[educe(Debug)]
-pub struct Trie<N, V, T = BoundaryTokenizer>
+pub struct ImmutableTrie<N, V, T = BoundaryTokenizer>
 where
-    N: TrieNode<V>,
+    N: ImmutableTrieNode<V>,
     T: Tokenizer,
 {
     #[educe(Debug(ignore))]
@@ -109,9 +108,9 @@ where
     _spooky: PhantomData<V>,
 }
 
-impl<N, V, T> Trie<N, V, T>
+impl<N, V, T> ImmutableTrie<N, V, T>
 where
-    N: TrieNode<V>,
+    N: ImmutableTrieNode<V>,
     T: Tokenizer,
 {
     pub fn new(tokenizer: T, root: N) -> Self {
@@ -148,9 +147,9 @@ where
     }
 }
 
-impl<N, V, T> Trie<N, V, T>
+impl<N, V, T> ImmutableTrie<N, V, T>
 where
-    N: TrieNode<V>,
+    N: ImmutableTrieNode<V>,
     V: Hash + Eq,
     T: Tokenizer,
 {
@@ -160,9 +159,9 @@ where
     }
 }
 
-impl<N, V, T> Trie<N, V, T>
+impl<N, V, T> ImmutableTrie<N, V, T>
 where
-    N: TrieNode<V>,
+    N: ImmutableTrieNode<V>,
     V: Ord,
     T: Tokenizer,
 {
@@ -172,9 +171,9 @@ where
     }
 }
 
-impl<N, T> Trie<N, bool, T>
+impl<N, T> ImmutableTrie<N, bool, T>
 where
-    N: TrieNode<bool>,
+    N: ImmutableTrieNode<bool>,
     T: Tokenizer,
 {
     #[inline]
@@ -183,9 +182,9 @@ where
     }
 }
 
-impl<N, V, T> Default for Trie<N, V, T>
+impl<N, V, T> Default for ImmutableTrie<N, V, T>
 where
-    N: TrieNode<V> + Default,
+    N: ImmutableTrieNode<V> + Default,
     T: Tokenizer + Default,
 {
     fn default() -> Self {
@@ -197,15 +196,21 @@ where
     }
 }
 
-pub type StringTrie<V, T = BoundaryTokenizer> = Trie<StringTrieNode<V>, V, T>;
-pub type StringTrieBuilder<V, T = WhitespaceTokenizer> = TrieBuilder<StringTrieNode<V>, V, T>;
+pub type StringTrie<V, T = BoundaryTokenizer> = ImmutableTrie<StringTrieNode<V>, V, T>;
+pub type StringTrieBuilder<V, T = WhitespaceTokenizer> =
+    ImmutableTrieBuilder<StringTrieNode<V>, V, T>;
 pub type StringMatcher<T = BoundaryTokenizer> = StringTrie<bool, T>;
-pub type StringMatcherBuilder<T = WhitespaceTokenizer> = TrieBuilder<StringTrieNode<bool>, bool, T>;
+pub type StringMatcherBuilder<T = WhitespaceTokenizer> =
+    ImmutableTrieBuilder<StringTrieNode<bool>, bool, T>;
 
-pub type RegexTrie<V, T = BoundaryTokenizer> = Trie<RegexFilteredTrieNode<V>, V, T>;
-pub type RegexMatcher<T = BoundaryTokenizer> = RegexTrie<bool, T>;
+#[feature("regex-filtered")]
+pub type RegexTrie<V, T = BoundaryTokenizer> = ImmutableTrie<RegexFilteredTrieNode<V>, V, T>;
+#[feature("regex-filtered")]
 pub type RegexTrieBuilder<V, T = WhitespaceTokenizer> =
-    TrieBuilder<RegexFilteredTrieNodeBuilder<V>, V, T>;
+    ImmutableTrieBuilder<RegexFilteredTrieNodeBuilder<V>, V, T>;
+#[feature("regex-filtered")]
+pub type RegexMatcher<T = BoundaryTokenizer> = RegexTrie<bool, T>;
+#[feature("regex-filtered")]
 pub type RegexMatcherBuilder<T = WhitespaceTokenizer> = RegexTrieBuilder<bool, T>;
 
 //#[cfg(test)]

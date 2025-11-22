@@ -1,15 +1,19 @@
 use crate::Result;
 
+mod char;
 mod generic;
+#[feature("regex")]
 mod regex;
 mod string;
 
+pub use char::*;
 pub use generic::*;
+#[feature("regex")]
 pub use regex::*;
 pub use string::*;
 
-pub trait TrieNodeBuilder<V> {
-    type Node: TrieNode<V>;
+pub trait MutableTrieNodeBuilder<V> {
+    type Node: MutableTrieNode<V>;
 
     fn add<S, I>(&mut self, items_iter: I, value: V) -> Result<()>
     where
@@ -19,7 +23,7 @@ pub trait TrieNodeBuilder<V> {
     fn build(self) -> Result<Self::Node>;
 }
 
-pub trait TrieNode<V> {
+pub trait MutableTrieNode<V> {
     fn value(&self) -> Option<&V>;
 
     fn get_children<S: AsRef<str>>(&self, token: S) -> Vec<&Self>;

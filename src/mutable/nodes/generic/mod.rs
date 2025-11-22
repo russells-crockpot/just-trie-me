@@ -1,17 +1,25 @@
-use super::{TrieNode, TrieNodeBuilder};
+use super::{MutableTrieNode, MutableTrieNodeBuilder};
 use crate::{
     Result,
     tokenization::{BoundaryTokenizer, Tokenizer},
 };
 use educe::Educe;
-use regex::{Regex, RegexBuilder};
-use regex_filtered::{Builder as RegexesBuilder, Options as RegexesOptions, Regexes};
 use std::{
     collections::{BTreeSet, HashMap},
     fmt,
     marker::PhantomData,
     ops::Deref,
 };
+
+mod char;
+#[feature("regex")]
+mod regex;
+mod string;
+
+pub use char::*;
+#[feature("regex")]
+pub use regex::*;
+pub use string::*;
 
 #[derive(Clone)]
 pub struct GenericTrieNode<K, V>
@@ -85,7 +93,7 @@ where
     }
 }
 
-impl<K, V> TrieNode<V> for GenericTrieNode<K, V>
+impl<K, V> MutableTrieNode<V> for GenericTrieNode<K, V>
 where
     K: NodeKey,
 {
@@ -116,7 +124,7 @@ where
     }
 }
 
-impl<K, V> TrieNodeBuilder<V> for GenericTrieNode<K, V>
+impl<K, V> MutableTrieNodeBuilder<V> for GenericTrieNode<K, V>
 where
     K: NodeKey,
 {
@@ -165,109 +173,4 @@ where
 pub trait NodeKey: Sized + Clone + fmt::Debug + PartialEq<str> {
     fn new<S: AsRef<str>>(key: S) -> Result<Self>;
     fn is_match<S: AsRef<str>>(&self, value: S) -> bool;
-}
-
-#[derive(Clone)]
-pub struct RegexNodeKey(Regex);
-
-impl Deref for RegexNodeKey {
-    type Target = Regex;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for RegexNodeKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl fmt::Debug for RegexNodeKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl NodeKey for RegexNodeKey {
-    #[inline]
-    fn new<S: AsRef<str>>(key: S) -> Result<Self> {
-        Ok(Self(
-            RegexBuilder::new(&format!("^{}$", key.as_ref()))
-                .unicode(true)
-                .case_insensitive(true)
-                .build()?,
-        ))
-    }
-
-    #[inline]
-    fn is_match<S: AsRef<str>>(&self, value: S) -> bool {
-        self.0.is_match(value.as_ref())
-    }
-}
-
-impl PartialEq for RegexNodeKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.as_str() == other.0.as_str()
-    }
-}
-
-impl PartialEq<str> for RegexNodeKey {
-    fn eq(&self, other: &str) -> bool {
-        self.0.as_str() == other
-    }
-}
-
-impl<'a> PartialEq<&'a str> for RegexNodeKey {
-    fn eq(&self, other: &&'a str) -> bool {
-        self.0.as_str() == *other
-    }
-}
-
-#[derive(Clone)]
-pub struct StringNodeKey(String);
-
-impl fmt::Display for StringNodeKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl fmt::Debug for StringNodeKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl NodeKey for StringNodeKey {
-    #[inline]
-    fn new<S: AsRef<str>>(key: S) -> Result<Self> {
-        Ok(Self(String::from(key.as_ref())))
-    }
-
-    #[inline]
-    fn is_match<S: AsRef<str>>(&self, value: S) -> bool {
-        self.0 == value.as_ref()
-    }
-}
-
-impl PartialEq for StringNodeKey {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl PartialEq<str> for StringNodeKey {
-    fn eq(&self, other: &str) -> bool {
-        self.0.as_str() == other
-    }
-}
-
-impl Deref for StringNodeKey {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
 }
